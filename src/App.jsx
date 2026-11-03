@@ -1,30 +1,24 @@
-import { Routes, Route } from "react-router-dom";
-import MainLayout from "./layouts/MainLayout";
-import AdminLayout from "./layouts/AdminLayout";
-import Dashboard from "./pages/frontpages/Dashboard";
-import Cart from "./pages/frontpages/Cart";
-import Checkout from "./pages/frontpages/Checkout";
-import ProductDetail from "./pages/frontpages/ProductDetail";
+import { Routes, Route, Navigate } from "react-router-dom";
 import AdminDashboard from "./pages/adminpages/AdminDashboard";
-import AboutPages from "./pages/adminpages/AboutPages";
+import AdminLayout from "./layouts/AdminLayout";
+import AboutPage from "./pages/adminpages/AboutPage";
+import ProductForm from "./pages/adminpages/ProductForm";
+import ProductEdit from "./pages/adminpages/ProductEdit";
 
 export default function App() {
   return (
     <Routes>
-      {/* Sisi user */}
-      <Route path="/" element={<MainLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="cart" element={<Cart />} />
-        <Route path="checkout" element={<Checkout />} />
-        <Route path="product/:id" element={<ProductDetail />} />
+      <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="about" element={<AboutPage />} />
+        <Route path="add-product" element={<ProductForm />} />
+        <Route path="edit-product/:id" element={<ProductEdit />} />
       </Route>
 
-      {/* Sisi admin */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="about" element={<AboutPages />} />
-      </Route>
+      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   );
 }
