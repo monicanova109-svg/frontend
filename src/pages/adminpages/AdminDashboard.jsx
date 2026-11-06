@@ -1,198 +1,184 @@
-import { useState } from "react";
+
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import toast from "react-hot-toast";
 import { useProducts } from "../../utils/ProductContext";
 
-const LIMIT = 5;
+// Mengambil nama kategori dari data Laravel
+function getCategoryName(category) {
+  if (!category) return "Novel";
 
-// Gambar di folder public, dicocokkan dengan judul novel
-// (spasi pada nama file ditulis sebagai %20)
-const GAMBAR_NOVEL = [
-  { cari: "pulang", file: "/novel%20pulang.webp" },
-  { cari: "dilan", file: "/novel%20dilan.jpg" },
-  { cari: "laut bercerita", file: "/novel%20laut%20bercerita.jpg" },
-  { cari: "bumi manusia", file: "/novel%20bumi%20manusia.jpg" },
-  { cari: "cantik itu luka", file: "/cantik%20itu%20luka.jpg" },
-  { cari: "laskar pelangi", file: "/novel%20laskar%20pelangi.avif" },
-];
+  if (typeof category === "string") {
+    return category;
+  }
 
-function getImageSrc(p) {
-  // 1. Cocokkan dulu dari judul novel (gambar di folder public)
-  const nama = (p.name || "").toLowerCase();
-  const cocok = GAMBAR_NOVEL.find((g) => nama.includes(g.cari));
-  if (cocok) return cocok.file;
+  if (typeof category === "object") {
+    return getCategoryName(
+      category.name ||
+      category.category ||
+      category.category_name
+    );
+  }
 
-  // 2. Kalau tidak cocok, baru pakai img_url dari database
-  return p.img_url || null;
+  return "Novel";
 }
 
 export default function AdminDashboard() {
-  const { getProducts, getCategories, deleteProduct } = useProducts();
-  const queryClient = useQueryClient();
+  const { products = [], isLoading } = useProducts();
 
-  const [page, setPage] = useState(1);
-  const [categoryId, setCategoryId] = useState("");
-  const [keywordInput, setKeywordInput] = useState("");
-  const [filter, setFilter] = useState({ category_id: "", keyword: "" });
+  // Perhitungan data novel
+  const totalNovel = products.length;
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: getCategories,
-  });
+  const totalStok = products.reduce(
+    (sum, p) => sum + Number(p.stock || 0),
+    0
+  );
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["products", "list", page, filter],
-    queryFn: () => getProducts({ page, limit: LIMIT, ...filter }),
-    placeholderData: (prev) => prev,
-  });
+  const stokHabis = products.filter(
+    (p) => Number(p.stock) <= 0
+  ).length;
 
-  const items = data?.data ?? [];
-  const lastPage = data?.last_page ?? 1;
+  const stokMenipis = products.filter(
+    (p) =>
+      Number(p.stock) > 0 &&
+      Number(p.stock) <= 5
+  ).length;
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-    setFilter({ category_id: categoryId, keyword: keywordInput });
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Apakah kamu yakin ingin menghapus novel ini?")) return;
-    try {
-      await deleteProduct.mutateAsync(id);
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Novel berhasil dihapus!");
-      if (items.length === 1 && page > 1) setPage(page - 1);
-    } catch {
-      toast.error("Terjadi kesalahan saat menghapus novel.");
-    }
-  };
-
-  if (isLoading) return <p>Loading...</p>;
-  if (isError) return <p>Error loading products.</p>;
+  const stats = [
+    {
+      label: "Total Novel",
+      value: totalNovel,
+      icon: "📚",
+      color: "bg-purple-100 text-purple-700",
+    },
+    {
+      label: "Total Stok",
+      value: totalStok,
+      icon: "📦",
+      color: "bg-pink-100 text-pink-700",
+    },
+    {
+      label: "Stok Menipis",
+      value: stokMenipis,
+      icon: "⚠️",
+      color: "bg-yellow-100 text-yellow-700",
+    },
+    {
+      label: "Stok Habis",
+      value: stokHabis,
+      icon: "❌",
+      color: "bg-red-100 text-red-700",
+    },
+  ];
 
   return (
-    <div className="p-4 bg-white rounded shadow">
-      <h1 className="text-xl font-bold mb-4">Manajemen Novel</h1>
+    <div className="min-h-screen bg-pink-50 p-5 space-y-6">
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <form onSubmit={handleSearch} className="flex flex-wrap gap-2">
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="border rounded-md p-2"
-          >
-            <option value="">Semua Kategori</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+      {/* Judul Dashboard */}
+      <div>
+        <h1 className="text-3xl font-bold text-purple-800">
+          Dashboard Rak Novel 📚
+        </h1>
+
+        <p className="text-gray-500 mt-1">
+          Selamat datang di halaman administrasi Rak Novel.
+          Kelola koleksi novel dengan mudah.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <p className="text-purple-700 font-medium">
+          Memuat data novel...
+        </p>
+      ) : (
+        <>
+          {/* Statistik */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {stats.map((s) => (
+              <div
+                key={s.label}
+                className="bg-white rounded-2xl shadow-md p-5 border border-purple-100 hover:shadow-lg transition"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm">
+                      {s.label}
+                    </p>
+
+                    <p className="text-3xl font-bold text-purple-800 mt-2">
+                      {s.value}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`${s.color} w-14 h-14 rounded-xl flex items-center justify-center text-2xl`}
+                  >
+                    {s.icon}
+                  </div>
+                </div>
+              </div>
             ))}
-          </select>
-          <input
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            placeholder="Cari novel..."
-            className="border rounded-md p-2"
-          />
-          <button type="submit" className="bg-blue-600 text-white rounded-md px-4 py-2">
-            Cari
-          </button>
-        </form>
+          </div>
 
-        <Link to="/admin/add-product" className="bg-green-600 text-white rounded-md px-4 py-2">
-          + Tambah Novel
+          {/* Informasi Koleksi Novel */}
+          <div className="bg-white rounded-2xl shadow-md p-6 border border-purple-100">
+            <h2 className="text-xl font-bold text-purple-800 mb-4">
+              Informasi Koleksi Novel
+            </h2>
+
+            <div className="space-y-4">
+
+              {products.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between border-b border-gray-100 pb-3"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-800">
+                      {p.title || p.name || "Tanpa Judul"}
+                    </p>
+
+                    <p className="text-sm text-gray-500">
+                      {getCategoryName(p.category)}
+                    </p>
+                  </div>
+
+                  <div>
+                    {Number(p.stock) <= 0 ? (
+                      <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-semibold">
+                        Habis
+                      </span>
+                    ) : Number(p.stock) <= 5 ? (
+                      <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        Menipis ({p.stock})
+                      </span>
+                    ) : (
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        Tersedia ({p.stock})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {products.length === 0 && (
+                <p className="text-center text-gray-400 py-5">
+                  Belum ada data novel.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Tombol Kelola Novel */}
+      <div className="flex justify-end">
+        <Link
+          to="/admin/product"
+          className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-3 rounded-xl font-semibold transition"
+        >
+          Kelola Novel →
         </Link>
       </div>
 
-      <table className="table-auto w-full border">
-        <thead>
-          <tr className="bg-gray-100 text-left">
-            <th className="p-2 border">#</th>
-            <th className="p-2 border">Sampul</th>
-            <th className="p-2 border">Judul</th>
-            <th className="p-2 border">Harga</th>
-            <th className="p-2 border">Stok</th>
-            <th className="p-2 border">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.length === 0 && (
-            <tr>
-              <td colSpan="6" className="p-4 text-center text-gray-400">
-                Tidak ada novel.
-              </td>
-            </tr>
-          )}
-          {items.map((p, index) => {
-            const gambar = getImageSrc(p);
-            return (
-              <tr key={p.id}>
-                <td className="p-2 border">{(page - 1) * LIMIT + index + 1}</td>
-                <td className="p-2 border">
-                  {gambar ? (
-                    <img
-                      src={gambar}
-                      alt={p.name}
-                      className="w-16 h-24 object-cover rounded"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <span className="text-gray-400 text-sm">Tidak ada</span>
-                  )}
-                </td>
-                <td className="p-2 border">
-                  {p.name} <br />
-                  <small className="text-gray-500">#{p.category?.name}</small>
-                </td>
-                <td className="p-2 border">Rp. {Number(p.price).toLocaleString("id-ID")}</td>
-                <td className="p-2 border">{p.stock}</td>
-                <td className="p-2 border space-x-2">
-                  <Link to={`/admin/edit-product/${p.id}`} className="text-blue-600 hover:underline">
-                    Edit
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    className="cursor-pointer text-red-600 hover:underline"
-                  >
-                    Hapus
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      <div className="mt-4 flex items-center justify-center gap-2">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className="rounded-md px-3 py-1 bg-gray-200 disabled:opacity-50"
-        >
-          Sebelumnya
-        </button>
-
-        {Array.from({ length: lastPage }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            onClick={() => setPage(n)}
-            className={`rounded-md px-3 py-1 ${
-              n === page ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            {n}
-          </button>
-        ))}
-
-        <button
-          onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-          disabled={page === lastPage}
-          className="rounded-md px-3 py-1 bg-blue-600 text-white disabled:opacity-50"
-        >
-          Berikutnya
-        </button>
-      </div>
     </div>
   );
 }
